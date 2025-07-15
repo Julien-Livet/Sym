@@ -15,6 +15,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
+find_package(Boost REQUIRED)
+
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GINAC REQUIRED ginac)
 

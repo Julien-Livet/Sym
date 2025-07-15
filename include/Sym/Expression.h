@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/math/special_functions/binomial.hpp>
 
 namespace sym
@@ -102,12 +103,12 @@ namespace sym
     {
         public:
             std::string name;
-            std::string inverse;
-            
+            std::string inverse; //TODO: to remove?
+
             Function(std::string const& name, size_t args = 1, std::string const& inverse = std::string()) : name{name}, inverse{inverse}, args_{args}
             {
             }
-            
+
             size_t args() const
             {
                 return args_;
@@ -135,7 +136,7 @@ namespace sym
 
                 if (power != T{0})
                 {
-                    if ((power == T{1} || (power.isMul() && power.mul().expressions().empty())) 
+                    if ((power == T{1} || (power.isMul() && power.mul().expressions().empty()))
                         && expression.isMul())
                     {
                         expressions_ = expression.mul().expressions_;
@@ -177,7 +178,7 @@ namespace sym
             Mul<T> inverse() const
             {
                 auto m{*this};
-                
+
                 return m.inverse();
             }
 
@@ -192,7 +193,7 @@ namespace sym
                     auto const it{std::find(expressions_.begin(),
                                             expressions_.end(),
                                             e)};
-                    
+
                     if (it == expressions_.end())
                         return false;
 
@@ -288,7 +289,7 @@ namespace sym
             Expression<T> operator+(Expression<T> const& other) const
             {
                 auto tmp{other};
-                
+
                 return tmp += other;
             }
 
@@ -433,7 +434,7 @@ namespace sym
                     s += "(" + expressions_.front().str() + ")";
                 else
                     s += expressions_.front().str();
-                    
+
                 if (!(powers_.front().isNumber() && powers_.front().number() == 1))
                 {
                     s += "**";
@@ -451,7 +452,7 @@ namespace sym
                     else
                         s += powers_.front().str();
                 }
-                
+
                 for (size_t i{1}; i < expressions_.size(); ++i)
                 {
                     s += "*";
@@ -470,7 +471,7 @@ namespace sym
                         s += "(" + expressions_[i].str() + ")";
                     else
                         s += expressions_[i].str();
-                        
+
                     if (!(powers_[i].isNumber() && powers_[i].number() == 1))
                     {
                         s += "**";
@@ -650,7 +651,7 @@ namespace sym
                     auto const it{std::find(expressions_.begin(),
                                             expressions_.end(),
                                             e)};
-                    
+
                     if (it == expressions_.end())
                         return false;
 
@@ -738,21 +739,21 @@ namespace sym
             Expression<T> operator*(Expression<T> const& other) const
             {
                 auto tmp{other};
-                
+
                 return tmp *= other;
             }
 
             Add<T> operator+(Add<T> const& other) const
             {
                 auto d{*this};
-                
+
                 return d += other;
             }
 
             Add<T> operator-(Add<T> const& other) const
             {
                 auto d{*this};
-                
+
                 return d -= other;
             }
 
@@ -769,7 +770,7 @@ namespace sym
                     auto const& mul{other.mul()};
 
                     std::vector<size_t> occurences(expressions_.size());
-                    
+
                     for (size_t i{0}; i < expressions_.size(); ++i)
                     {
                         for (auto const& e: mul.expressions())
@@ -854,7 +855,7 @@ namespace sym
                 }
 
                 std::vector<size_t> occurences(expressions_.size());
-                
+
                 for (size_t i{0}; i < expressions_.size(); ++i)
                 {
                     //TODO: add test on same powers too?
@@ -865,7 +866,7 @@ namespace sym
                 }
 
                 auto const it{std::max_element(occurences.begin(), occurences.end())};
-                
+
                 if (it != occurences.end() && *it)
                 {
                     auto const i{std::distance(occurences.begin(), it)};
@@ -929,9 +930,9 @@ namespace sym
                     return "0";
 
                 std::string s;
-                
+
                 s += expressions_.front().str();
-                
+
                 for (size_t i{1}; i < expressions_.size(); ++i)
                 {
                     s += "+";
@@ -964,16 +965,26 @@ namespace sym
                 assert(function.args() == expressions.size());
             }
 
+            auto const& function() const
+            {
+                return function_;
+            }
+
+            auto const& expressions() const
+            {
+                return expressions_;
+            }
+
             std::string str() const
             {
                 std::string s;
 
                 s += function_.name + "(";
-                
+
                 if (expressions_.size())
                 {
                     s += expressions_.front().str();
-                    
+
                     for (size_t i{1}; i < expressions_.size(); ++i)
                     {
                         s += ", ";
@@ -1069,7 +1080,7 @@ namespace sym
             Expression(Composition<T> const& composition) : type_{CompositionType}, composition_{std::make_unique<Composition<T> >(composition)}
             {
             }
-            
+
             Type type() const
             {
                 return type_;
@@ -1264,7 +1275,7 @@ namespace sym
                 else if (other.isAdd())
                 {
                     auto e{other.add()};
-                    
+
                     e += *this;
 
                     *this = e;
@@ -1296,7 +1307,7 @@ namespace sym
                 else if (other.isMul())
                 {
                     auto e{other.mul()};
-                    
+
                     e *= *this;
 
                     *this = e;
@@ -1398,6 +1409,8 @@ namespace sym
                 else// if (type_ == CompositionType)
                     s += composition_->str();
 
+                boost::replace_all(s, "+-", "-");
+
                 return s;
             }
 
@@ -1417,6 +1430,183 @@ namespace sym
             std::unique_ptr<Mul<T> > mul_;
             std::unique_ptr<Composition<T> > composition_;
     };
+
+    template <typename T>
+    Expression<T> abs(Expression<T> const& e)
+    {
+        return Composition<T>(Function("abs"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> ceil(Expression<T> const& e)
+    {
+        return Composition<T>(Function("ceil"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> floor(Expression<T> const& e)
+    {
+        return Composition<T>(Function("floor"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> min(Expression<T> const& x, Expression<T> const& y)
+    {
+        return Composition<T>(Function("min", 2), std::vector<Expression<T> >{x, y});
+    }
+
+    template <typename T>
+    Expression<T> max(Expression<T> const& x, Expression<T> const& y)
+    {
+        return Composition<T>(Function("max", 2), std::vector<Expression<T> >{x, y});
+    }
+
+    template <typename T>
+    Expression<T> exp(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "log")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("exp"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> log(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "exp")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("log"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> sin(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "asin")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("sin"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> asin(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "sin")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("asin"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> cos(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "acos")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("cos"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> acos(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "cos")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("acos"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> tan(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "atan")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("tan"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> atan(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "tan")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("atan"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> sinh(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "asinh")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("sinh"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> asinh(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "sinh")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("asinh"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> cosh(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "acosh")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("cosh"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> acosh(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "cosh")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("acosh"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> tanh(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "atanh")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("tanh"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> atanh(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "tanh")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("atanh"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> cot(Expression<T> const& e)
+    {
+        return Composition<T>(Function("cot"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> sqrt(Expression<T> const& e)
+    {
+        return Composition<T>(Function("sqrt"), std::vector<Expression<T> >{e});
+    }
+
+    template <typename T>
+    Expression<T> inverse(Expression<T> const& e)
+    {
+        if (e.isComposition() && e.composition().function().name == "inverse")
+            return e.composition().expressions().front();
+
+        return Composition<T>(Function("inverse"), std::vector<Expression<T> >{e});
+    }
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >*>

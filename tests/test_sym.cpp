@@ -27,9 +27,11 @@ TEST(TestSym, AddSymbolAndNumber)
 {
     Symbol const x{"x"};
 
-    Expression<T> const e{x + T{1.2}};
+    Expression<T> const e1{x + T{1.2}};
+    Expression<T> const e2{x - T{0.8}};
 
-    EXPECT_TRUE(e.str() == "x+1.2");
+    EXPECT_TRUE(e1.str() == "x+1.2");
+    EXPECT_TRUE(e2.simplify().str() == "x-0.8");
 }
 
 TEST(TestSym, AddSymbols)
@@ -147,4 +149,14 @@ TEST(TestSym, 1AddxPow2)
     EXPECT_TRUE(e.str() == "(1+x)**2");
     EXPECT_TRUE(e.simplify().str() == "(1+x)**2");
     EXPECT_TRUE(e.expand().simplify().str() == "(x)**2+2*(x)+1");
+}
+
+TEST(TestSym, exp)
+{
+    EXPECT_TRUE(sym::exp(Expression<T>{Symbol{"x"}}).str() == "exp(x)");
+}
+
+TEST(TestSym, expLog)
+{
+    EXPECT_TRUE(sym::exp(sym::log(Expression<T>{Symbol{"x"}})).str() == "x");
 }
