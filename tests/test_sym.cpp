@@ -12,20 +12,24 @@ using T = double;
 TEST(TestSym, Symbol)
 {
     Expression<T> const e{Symbol{"x"}};
+
+    EXPECT_TRUE(e.str() == "x");
 }
 
 TEST(TestSym, Number)
 {
     Expression<T> const e{1.2};
+
+    EXPECT_TRUE(e.str() == "1.2");
 }
 
 TEST(TestSym, AddSymbolAndNumber)
 {
     Symbol const x{"x"};
 
-    Expression<T> const e1{x + T{1.2}};
+    Expression<T> const e{x + T{1.2}};
 
-    std::cout << e1.simplify().str() << std::endl;
+    EXPECT_TRUE(e.str() == "x+1.2");
 }
 
 TEST(TestSym, AddSymbols)
@@ -35,7 +39,7 @@ TEST(TestSym, AddSymbols)
 
     Expression<T> const e{operator+<T>(x, y)};
 
-    std::cout << e.str() << std::endl;
+    EXPECT_TRUE(e.str() == "x+y");
 }
 
 TEST(TestSym, 2xAdd3x)
@@ -44,7 +48,8 @@ TEST(TestSym, 2xAdd3x)
 
     Expression<T> const e{T{2} * x + T{3} * x};
 
-    std::cout << e.simplify().str() << std::endl;
+    EXPECT_TRUE(e.str() == "5*x");
+    EXPECT_TRUE(e.simplify().str() == "5*x");
 }
 
 TEST(TestSym, 2xSub2x)
@@ -53,7 +58,8 @@ TEST(TestSym, 2xSub2x)
 
     Expression<T> const e{T{2} * x - T{2} * x};
 
-    std::cout << e.simplify().str() << std::endl;
+    EXPECT_TRUE(e.str() == "0");
+    EXPECT_TRUE(e.simplify().str() == "0");
 }
 
 TEST(TestSym, xMulx)
@@ -62,16 +68,13 @@ TEST(TestSym, xMulx)
 
     Expression<T> const e1{operator*<T>(x, x)};
 
-    //std::cout << e1.str() << std::endl;
-    std::cout << e1.simplify().str() << std::endl;
+    EXPECT_TRUE(e1.str() == "x**2");
 
     Expression<T> const e2{e1 * x};
     Expression<T> const e3{e1.simplify() * x};
 
-    //std::cout << e2.str() << std::endl;
-    std::cout << e2.simplify().str() << std::endl;
-    //std::cout << e3.str() << std::endl;
-    std::cout << e3.simplify().str() << std::endl;
+    EXPECT_TRUE(e2.str() == "x**3");
+    EXPECT_TRUE(e3.simplify().str() == "x**3");
 }
 
 TEST(TestSym, xPowaMulxPowa)
@@ -81,7 +84,8 @@ TEST(TestSym, xPowaMulxPowa)
     Mul<T> const x2{x, a};
     Expression<T> const e{x2 * x2};
 
-    std::cout << e.simplify().str() << std::endl;
+    EXPECT_TRUE(e.str() == "x**(2*a)");
+    EXPECT_TRUE(e.simplify().str() == "x**(2*a)");
 }
 
 TEST(TestSym, xPowaMulxPowb)
@@ -92,7 +96,7 @@ TEST(TestSym, xPowaMulxPowb)
     Mul<T> const xb{x, b};
     Expression<T> const e{xa * xb};
 
-    std::cout << e.simplify().str() << std::endl;
+    EXPECT_TRUE(e.str() == "x**(a+b)");
 }
 
 TEST(TestSym, AddEquality)
@@ -115,13 +119,13 @@ TEST(TestSym, MulEquality)
     EXPECT_TRUE(e1 == e2);
 }
 
-TEST(TestSym, 2xPow2Addx)
+TEST(TestSym, xPow2Add2x)
 {
     Symbol const x{"x"};
 
     Expression<T> const e{T{2} * x + operator*<T>(x, x)};
 
-    std::cout << e.simplify().str() << std::endl;
+    EXPECT_TRUE(e.str() == "2*x+x**2" || e.str() == "x**2+2*x");
 }
 
 TEST(TestSym, 1AddxFactor2Addy)
@@ -130,8 +134,8 @@ TEST(TestSym, 1AddxFactor2Addy)
 
     Expression<T> const e{(T{1} + x) * (T{2} + y)};
 
-    std::cout << e.simplify().str() << std::endl;
-    std::cout << e.expand().simplify().str() << std::endl;
+    EXPECT_TRUE(e.simplify().str() == "(1+x)*(2+y)");
+    EXPECT_TRUE(e.expand().simplify().str() == "2+2*x+y+x*y");
 }
 
 TEST(TestSym, 1AddxPow2)
@@ -140,7 +144,7 @@ TEST(TestSym, 1AddxPow2)
 
     Expression<T> const e{(T{1} + x) * (T{1} + x)};
 
-    std::cout << e.simplify().str() << std::endl;
-    std::cout << e.expand().str() << std::endl;
-    std::cout << e.expand().simplify().str() << std::endl;
+    EXPECT_TRUE(e.str() == "(1+x)**2");
+    EXPECT_TRUE(e.simplify().str() == "(1+x)**2");
+    EXPECT_TRUE(e.expand().simplify().str() == "(x)**2+2*(x)+1");
 }

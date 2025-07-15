@@ -417,30 +417,88 @@ namespace sym
 
                 std::string s;
 
-                if (powers_.front().isNumber() && powers_.front().number() == 1)
+                if (expressions_.front().isNumber())
+                {
+                    std::ostringstream oss;
+
+                    oss << expressions_.front().number();
+
+                    s += oss.str();
+                }
+                else if (powers_.front().isComplex() && (expressions_.front().isMul()
+                                                         || expressions_.front().isAdd())
+                         || (expressions_.front().isAdd() && (expressions_.size() > 1
+                                                              || (powers_.front().isNumber()
+                                                                  && powers_.front().number() != T{1}))))
                     s += "(" + expressions_.front().str() + ")";
                 else
-                    s += "(" + expressions_.front().str() + ")**(" + powers_.front().str() + ")";
+                    s += expressions_.front().str();
+                    
+                if (!(powers_.front().isNumber() && powers_.front().number() == 1))
+                {
+                    s += "**";
+
+                    if (powers_.front().isNumber())
+                    {
+                        std::ostringstream oss;
+
+                        oss << powers_.front().number();
+
+                        s += oss.str();
+                    }
+                    else if (powers_.front().isAdd() || powers_.front().isMul())
+                        s += "(" + powers_.front().str() + ")";
+                    else
+                        s += powers_.front().str();
+                }
                 
                 for (size_t i{1}; i < expressions_.size(); ++i)
                 {
                     s += "*";
 
-                    if (powers_[i].isNumber() && powers_[i].number() == 1)
+                    if (expressions_[i].isNumber())
+                    {
+                        std::ostringstream oss;
+
+                        oss << expressions_[i].number();
+
+                        s += oss.str();
+                    }
+                    else if (powers_[i].isComplex() && (expressions_[i].isMul()
+                                                        || expressions_[i].isAdd())
+                            || expressions_[i].isAdd())
                         s += "(" + expressions_[i].str() + ")";
                     else
-                        s += "(" + expressions_[i].str() + ")**(" + powers_[i].str() + ")";
+                        s += expressions_[i].str();
+                        
+                    if (!(powers_[i].isNumber() && powers_[i].number() == 1))
+                    {
+                        s += "**";
+
+                        if (powers_[i].isNumber())
+                        {
+                            std::ostringstream oss;
+
+                            oss << powers_[i].number();
+
+                            s += oss.str();
+                        }
+                        else if (powers_[i].isAdd() || powers_[i].isMul())
+                            s += "(" + powers_[i].str() + ")";
+                        else
+                            s += powers_[i].str();
+                    }
                 }
 
                 return s;
             }
 
-            Expression<T> factor() const
+            Mul<T> factor() const
             {
-                Expression<T> e{*this};
+                Mul<T> e{*this};
 
                 for (auto& expression: e.expressions_)
-                    e = expression.factor();
+                    expression = expression.factor();
 
                 return e;
             }
@@ -716,6 +774,7 @@ namespace sym
                     {
                         for (auto const& e: mul.expressions())
                         {
+                            //TODO: add test on same powers too?
                             if (std::find(expressions_[i].expressions().begin(),
                                           expressions_[i].expressions().end(),
                                           e) != expressions_[i].expressions().end())
@@ -732,24 +791,42 @@ namespace sym
                         std::vector<Expression<T> > factors1;
                         std::vector<Expression<T> > terms;
 
-                        for (auto const& e: mul.expressions())
+                        auto const mulExpressions{mul.expressions()};
+                        auto const expressions{expressions_[i].expressions()};
+
+                        for (size_t j{0}; j < mulExpressions.size(); ++j)
                         {
-                            if (std::find(expressions_[i].expressions().begin(),
-                                          expressions_[i].expressions().end(),
-                                          e) != expressions_[i].expressions().end())
-                                terms.emplace_back(e);
+                            auto const& e{mulExpressions[j]};
+                            bool isTerm{false};
+                            auto const itBis{std::find(expressions.begin(),
+                                                       expressions.end(),
+                                                       e)};
+
+                            if (itBis != expressions.end())
+                            {
+                                auto const k{std::distance(expressions.begin(), itBis)};
+
+                                isTerm = (expressions_[i].powers()[k] == mul.powers()[j]);
+                            }
+
+                            Mul<T> const expr{mul.expressions()[j], mul.powers()[j]};
+
+                            if (isTerm)
+                                terms.emplace_back(expr);
                             else
-                                factors1.emplace_back(e);
+                                factors1.emplace_back(expr);
                         }
-                        
+
                         std::vector<Expression<T> > factors2;
 
-                        for (auto const& e: expressions_[i].expressions())
+                        for (size_t j{0}; j < expressions.size(); ++j)
                         {
+                            Mul<T> const expr{expressions[j], expressions_[i].powers()[j]};
+
                             if (std::find(terms.begin(),
                                           terms.end(),
-                                          e) == terms.end())
-                                factors2.emplace_back(e);
+                                          expr) == terms.end())
+                                factors2.emplace_back(expr);
                         }
 
                         Mul<T> factor1, factor2;
@@ -760,7 +837,10 @@ namespace sym
                         for (auto const& f: factors2)
                             factor2 *= f;
 
-                        Expression<T> factor{factor1 + factor2};
+                        Add<T> sum{factor1};
+                        sum.append(factor2);
+
+                        Mul<T> factor{sum};
 
                         for (auto const& f: terms)
                             factor *= f;
@@ -777,6 +857,7 @@ namespace sym
                 
                 for (size_t i{0}; i < expressions_.size(); ++i)
                 {
+                    //TODO: add test on same powers too?
                     if (std::find(expressions_[i].expressions().begin(),
                                   expressions_[i].expressions().end(),
                                   other) != expressions_[i].expressions().end())
@@ -1318,6 +1399,14 @@ namespace sym
                     s += composition_->str();
 
                 return s;
+            }
+
+            bool isComplex() const
+            {
+                if (isNumber() || isComposition() || isSymbol())
+                    return false;
+                else
+                    return true;
             }
 
         private:
