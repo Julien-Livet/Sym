@@ -134,7 +134,12 @@ namespace sym
                 if (expression == T{1} || (expression.isMul() && expression.mul().expressions().empty()))
                     power = T{1};
 
-                if (power != T{0})
+                if (expression.isNull())
+                {
+                    expressions_.emplace_back(T{0});
+                    powers_.emplace_back(T{1});
+                }
+                else if (power != T{0})
                 {
                     if ((power == T{1} || (power.isMul() && power.mul().expressions().empty()))
                         && expression.isMul())
@@ -155,7 +160,12 @@ namespace sym
                 expressions_.clear();
                 powers_.clear();
 
-                if (expression.isMul())
+                if (expression.isNull())
+                {
+                    expressions_.emplace_back(T{0});
+                    powers_.emplace_back(T{1});
+                }
+                else if (expression.isMul())
                 {
                     expressions_ = expression.mul().expressions_;
                     powers_ = expression.mul().powers_;
@@ -243,8 +253,13 @@ namespace sym
 
                 for (size_t i{0}; i < expressions_.size(); ++i)
                 {
-                    if (expressions_[i].isNumber() && powers_[i].isNumber())
-                        x *= std::pow(expressions_[i].number(), powers_[i].number());
+                    if (powers_[i].isNumber())
+                    {
+                        if (expressions_[i].isMul())
+                            x *= std::pow(expressions_[i].mul().numberFactor(), powers_[i].number());
+                        if (expressions_[i].isNumber())
+                            x *= std::pow(expressions_[i].number(), powers_[i].number());
+                    }
                 }
 
                 return x;
@@ -263,16 +278,13 @@ namespace sym
                 for (size_t i{0}; i < expressions_.size(); ++i)
                 {
                     if (!expressions_[i].isNumber() || !powers_[i].isNumber())
-                    {
-                        m.expressions_.emplace_back(expressions_[i].simplify());
-                        m.powers_.emplace_back(powers_[i].simplify());
-                    }
+                        m *= Mul<T>{expressions_[i].simplify(), powers_[i].simplify()};
                 }
 
                 return m;
             }
 
-            bool isNull(T eps = 1e-6) const
+            bool isNull(T eps = 1e-4) const
             {
                 if (std::abs(numberFactor()) <= eps)
                     return true;
@@ -309,6 +321,19 @@ namespace sym
 
             Mul<T>& operator*=(Expression<T> const& other)
             {
+                if (isNull())
+                    return *this;
+
+                if (other.isNull())
+                {
+                    expressions_.clear();
+                    powers_.clear();
+                    expressions_.emplace_back(T{0});
+                    powers_.emplace_back(T{1});
+
+                    return *this;
+                }
+
                 if (other.isMul())
                     return *this *= other.mul();
 
@@ -711,6 +736,17 @@ namespace sym
 
             Add<T> simplify() const
             {
+                if (expressions_.size() == 1)
+                {
+                    auto const& mul{expressions_.front()};
+
+                    if (mul.expressions().size() == 1
+                        && mul.powers().front().isNumber()
+                        && mul.powers().front().number() == T{1}
+                        && mul.powers().front().isAdd())
+                        return mul.expressions().front().add();
+                }
+
                 Add<T> a;
 
                 if (isNumber())
@@ -724,7 +760,7 @@ namespace sym
                 return a;
             }
 
-            bool isNull(T eps = 1e-6) const
+            bool isNull(T eps = 1e-4) const
             {
                 if (expressions_.empty())
                     return true;
@@ -1096,8 +1132,11 @@ namespace sym
                     symbol_ = std::make_unique<Symbol>(*other.symbol_);
                 else if (type_ == AddType)
                     add_ = std::make_unique<Add<T> >(*other.add_);
-                else if (type_ == MulType)
-                    mul_ = std::make_unique<Mul<T> >(*other.mul_);
+                else if (other.isMul())
+                {
+                    mul_ = std::make_unique<Mul<T> >(other.mul());
+                    type_ = MulType;
+                }
                 else// if (type_ == CompositionType)
                     composition_ = std::make_unique<Composition<T> >(*other.composition_);
             }
@@ -1116,8 +1155,11 @@ namespace sym
                     symbol_ = std::make_unique<Symbol>(*other.symbol_);
                 else if (type_ == AddType)
                     add_ = std::make_unique<Add<T> >(*other.add_);
-                else if (type_ == MulType)
-                    mul_ = std::make_unique<Mul<T> >(*other.mul_);
+                else if (other.isMul())
+                {
+                    mul_ = std::make_unique<Mul<T> >(other.mul());
+                    type_ = MulType;
+                }
                 else// if (type_ == CompositionType)
                     composition_ = std::make_unique<Composition<T> >(*other.composition_);
 
@@ -1146,7 +1188,7 @@ namespace sym
                 return !operator==(other);
             }
 
-            bool isNull(T eps = 1e-6) const
+            bool isNull(T eps = 1e-4) const
             {
                 if (type_ == NumberType)
                     return std::abs(*number_) <= eps;
@@ -1162,6 +1204,10 @@ namespace sym
 
             bool isMul() const
             {
+                if (isAdd()
+                    && add().expressions().size() == 1)
+                    return true;
+
                 return type_ == MulType;
             }
 
@@ -1226,6 +1272,10 @@ namespace sym
 
             auto const& mul() const
             {
+                if (isAdd()
+                    && add().expressions().size() == 1)
+                    return add().expressions().front();
+
                 assert(type_ == MulType);
 
                 return *mul_;
@@ -1302,7 +1352,7 @@ namespace sym
             {
                 if (isMul())
                 {
-                    *mul_ *= other;
+                    *this = mul() * other;
 
                     return *this;
                 }
@@ -1371,7 +1421,7 @@ namespace sym
                 auto e{*this};
 
                 if (e.isMul())
-                    e.mul_ = std::make_unique<Mul<T> >(e.mul_->factor());
+                    e.mul_ = std::make_unique<Mul<T> >(e.mul().factor());
                 else if (e.isAdd())
                     e.add_ = std::make_unique<Add<T> >(e.add_->factor());
                 else if (e.isComposition())
@@ -1385,7 +1435,11 @@ namespace sym
                 auto e{*this};
 
                 if (e.isMul())
-                    e.mul_ = std::make_unique<Mul<T> >(e.mul_->simplify());
+                {
+                    e.mul_ = std::make_unique<Mul<T> >(mul().simplify());
+                    e.type_ = MulType;
+                    e.add_.reset();
+                }
                 else if (e.isAdd())
                     e.add_ = std::make_unique<Add<T> >(e.add_->simplify());
                 else if (e.isComposition())
@@ -1410,8 +1464,8 @@ namespace sym
                     s += symbol_->name;
                 else if (type_ == AddType)
                     s += add_->str();
-                else if (type_ == MulType)
-                    s += mul_->str();
+                else if (isMul())
+                    s += mul().str();
                 else// if (type_ == CompositionType)
                     s += composition_->str();
 

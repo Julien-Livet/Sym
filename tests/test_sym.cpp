@@ -148,7 +148,7 @@ TEST(TestSym, 1AddxPow2)
 
     EXPECT_TRUE(e.str() == "(1+x)**2");
     EXPECT_TRUE(e.simplify().str() == "(1+x)**2");
-    EXPECT_TRUE(e.expand().simplify().str() == "(x)**2+2*(x)+1");
+    EXPECT_TRUE(e.expand().simplify().str() == "x**2+2*x+1");
 }
 
 TEST(TestSym, exp)
@@ -159,4 +159,22 @@ TEST(TestSym, exp)
 TEST(TestSym, expLog)
 {
     EXPECT_TRUE(sym::exp(sym::log(Expression<T>{Symbol{"x"}})).str() == "x");
+}
+
+TEST(TestSym, 2xMul3x)
+{
+    Symbol const x{"x"};
+
+    Expression<T> const e{T{2} * x * T{3} * x};
+
+    EXPECT_TRUE(e.simplify().str() == "6*x**2");
+}
+
+TEST(TestSym, ComplexNullExpression)
+{
+    Symbol const y{"y"};
+
+    Expression<T> const e = (0.996642*(((1.38482e-10*(operator*<T>(y, y)))+(0.00191499*(y)))*((1.38472e-10*(operator*<T>(y, y)))+(0.00191499*(y)))))+((-3.65487e-06*(operator*<T>(y, y)))+(-9.6662e-13*(y)))+4.66616e-12;
+
+    EXPECT_TRUE(e.isNull());
 }
