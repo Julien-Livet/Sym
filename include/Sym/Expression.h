@@ -8,6 +8,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <boost/math/special_functions/binomial.hpp>
+
 namespace sym
 {
     template <typename T>
@@ -31,24 +33,56 @@ template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >* = nullptr>
 sym::Expression<T> operator+(T const& lhs, sym::Symbol const& rhs);
 template <typename T>
 sym::Expression<T> operator+(sym::Symbol const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator+(sym::Expression<T> const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator+(sym::Symbol const& lhs, sym::Expression<T> const& rhs);
+template <typename T>
+sym::Expression<T> operator+(sym::Expression<T> const& lhs, T const& rhs);
+template <typename T>
+sym::Expression<T> operator+(T const& lhs, sym::Expression<T> const& rhs);
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >* = nullptr>
 sym::Expression<T> operator-(sym::Symbol const& lhs, T const& rhs);
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >* = nullptr>
 sym::Expression<T> operator-(T const& lhs, sym::Symbol const& rhs);
 template <typename T>
 sym::Expression<T> operator-(sym::Symbol const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator-(sym::Expression<T> const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator-(sym::Symbol const& lhs, sym::Expression<T> const& rhs);
+template <typename T>
+sym::Expression<T> operator-(sym::Expression<T> const& lhs, T const& rhs);
+template <typename T>
+sym::Expression<T> operator-(T const& lhs, sym::Expression<T> const& rhs);
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >* = nullptr>
 sym::Expression<T> operator*(sym::Symbol const& lhs, T const& rhs);
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >* = nullptr>
 sym::Expression<T> operator*(T const& lhs, sym::Symbol const& rhs);
 template <typename T>
 sym::Expression<T> operator*(sym::Symbol const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator*(sym::Expression<T> const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator*(sym::Symbol const& lhs, sym::Expression<T> const& rhs);
+template <typename T>
+sym::Expression<T> operator*(sym::Expression<T> const& lhs, T const& rhs);
+template <typename T>
+sym::Expression<T> operator*(T const& lhs, sym::Expression<T> const& rhs);
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >* = nullptr>
 sym::Expression<T> operator/(sym::Symbol const& lhs, T const& rhs);
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >* = nullptr>
 sym::Expression<T> operator/(T const& lhs, sym::Symbol const& rsh);
 template <typename T>
 sym::Expression<T> operator/(sym::Symbol const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator/(sym::Expression<T> const& lhs, sym::Symbol const& rhs);
+template <typename T>
+sym::Expression<T> operator/(sym::Symbol const& lhs, sym::Expression<T> const& rhs);
+template <typename T>
+sym::Expression<T> operator/(sym::Expression<T> const& lhs, T const& rhs);
+template <typename T>
+sym::Expression<T> operator/(T const& lhs, sym::Expression<T> const& rhs);
 template <typename T>
 sym::Mul<T> operator-(sym::Expression<T> const& expression);
 template <typename T>
@@ -94,17 +128,24 @@ namespace sym
             {
             }
 
-            Mul(Expression<T> const& expression, Expression<T> const& power = T{1})
+            Mul(Expression<T> const& expression, Expression<T> power = T{1})
             {
-                if (power == T{1} && expression.isMul())
+                if (expression == T{1} || (expression.isMul() && expression.mul().expressions().empty()))
+                    power = T{1};
+
+                if (power != T{0})
                 {
-                    expressions_ = expression.mul().expressions_;
-                    powers_ = expression.mul().powers_;
-                }
-                else
-                {
-                    expressions_.emplace_back(expression);
-                    powers_.emplace_back(power);
+                    if ((power == T{1} || (power.isMul() && power.mul().expressions().empty())) 
+                        && expression.isMul())
+                    {
+                        expressions_ = expression.mul().expressions_;
+                        powers_ = expression.mul().powers_;
+                    }
+                    else
+                    {
+                        expressions_.emplace_back(expression);
+                        powers_.emplace_back(power);
+                    }
                 }
             }
 
@@ -230,11 +271,14 @@ namespace sym
                 return m;
             }
 
-            bool isNull() const
+            bool isNull(T eps = 1e-6) const
             {
+                if (std::abs(numberFactor()) <= eps)
+                    return true;
+
                 for (auto const& e: expressions_)
                 {
-                    if (e.isNull())
+                    if (e.isNull(eps))
                         return true;
                 }
 
@@ -391,6 +435,113 @@ namespace sym
                 return s;
             }
 
+            Expression<T> factor() const
+            {
+                Expression<T> e{*this};
+
+                for (auto& expression: e.expressions_)
+                    e = expression.factor();
+
+                return e;
+            }
+
+            Expression<T> expand() const
+            {
+                if (expressions_.empty())
+                    return Add<T>{};
+
+                {
+                    Expression<T> const* term{nullptr};
+                    Expression<T> const* power{nullptr};
+
+                    for (size_t i{0}; i < expressions_.size(); ++i)
+                    {
+                        if (powers_[i].isNumber()
+                            && powers_[i].number() == int(powers_[i].number())
+                            && std::abs(powers_[i].number()) > 1
+                            && expressions_[i].isAdd()
+                            && expressions_[i].add().expressions().size() > 1)
+                        {
+                            term = &expressions_[i];
+                            power = &powers_[i];
+                            break;
+                        }
+                    }
+
+                    if (term && power)
+                    {
+                        Expression<T> const term1{term->add().expressions().front()};
+                        Expression<T> term2;
+
+                        for (size_t i{1}; i < term->add().expressions().size(); ++i)
+                            term2 += term->add().expressions()[i];
+
+                        auto const n{static_cast<size_t>(std::abs(power->number()))};
+
+                        Add<T> sum;
+
+                        for (size_t i{0}; i <= n; ++i)
+                            sum.append(Mul<T>{static_cast<T>(boost::math::binomial_coefficient<double>(n, i))}
+                                       * Mul<T>{term1, static_cast<T>(i)}
+                                       * Mul<T>{term2, static_cast<T>(n - i)});
+
+                        if (power->number() < 0)
+                            return Mul<T>{sum, -1}.expand();
+                        else
+                            return sum.expand();
+                    }
+                }
+
+                auto const& first{expressions_.front()};
+                Expression<T> const* second{nullptr};
+                size_t index{0};
+
+                for (size_t i{1}; i < expressions_.size(); ++i)
+                {
+                    if (expressions_[i].isAdd()
+                        && expressions_[i].add().expressions().size() > 1
+                        && powers_[i].isNumber()
+                        && std::abs(powers_[i].number()) == 1)
+                    {
+                        second = &expressions_[i];
+                        index = i;
+                        break;
+                    }
+                }
+
+                if (!second)
+                    return *this;
+
+                Mul<T> term;
+
+                for (size_t i{1}; i < expressions_.size(); ++i)
+                {
+                    if (index != i)
+                        term *= Mul<T>(expressions_[i], powers_[i]);
+                }
+
+                Add<T> sum;
+
+                if (first.isAdd())
+                {
+                    for (size_t i{0}; i < second->add().expressions().size(); ++i)
+                    {
+                        for (size_t j{0}; j < first.add().expressions().size(); ++j)
+                            sum.append(first.add().expressions()[j] * second->add().expressions()[i]);
+                    }
+                }
+                else
+                {
+                    for (size_t i{0}; i < second->add().expressions().size(); ++i)
+                        sum.append(first * second->add().expressions()[i]);
+                }
+
+                if (term.expressions_.empty())
+                    return sum;
+                else
+                    return sum * term;
+            }
+
         private:
             std::vector<Expression<T> > expressions_;
             std::vector<Expression<T> > powers_;
@@ -409,6 +560,12 @@ namespace sym
                 if (expression.isAdd())
                     expressions_ = expression.add().expressions_;
                 else if (!expression.isNull())
+                    expressions_.emplace_back(expression);
+            }
+
+            void append(Expression<T> const& expression)
+            {
+                if (!expression.isNull())
                     expressions_.emplace_back(expression);
             }
 
@@ -481,6 +638,16 @@ namespace sym
                 return x;
             }
 
+            Add<T> factor() const
+            {
+                Add<T> e;
+
+                for (auto& expression: expressions_)
+                    e += expression.factor();
+
+                return e;
+            }
+
             Add<T> simplify() const
             {
                 Add<T> a;
@@ -496,14 +663,14 @@ namespace sym
                 return a;
             }
 
-            bool isNull() const
+            bool isNull(T eps = 1e-6) const
             {
                 if (expressions_.empty())
                     return true;
 
                 for (auto const& e: expressions_)
                 {
-                    if (!e.isNull())
+                    if (!e.isNull(eps))
                         return false;
                 }
 
@@ -693,6 +860,16 @@ namespace sym
                 return s;
             }
 
+            Add<T> expand() const
+            {
+                Add<T> e;
+
+                for (auto const& expression: expressions_)
+                    e.append(expression.expand());
+
+                return e;
+            }
+
         private:
             std::vector<Mul<T> > expressions_;
     };
@@ -730,6 +907,37 @@ namespace sym
 
             bool operator==(Composition const& other) const = default;
             bool operator!=(Composition const& other) const = default;
+
+            Composition<T> expand() const
+            {
+                auto e{*this};
+
+                for (auto& expression: e.expressions_)
+                    expression = expression.expand();
+
+                return e;
+            }
+
+            Composition<T> simplify() const
+            {
+                auto e{*this};
+
+                for (auto& expression: e.expressions_)
+                    expression = expression.simplify();
+
+                return e;
+            }
+
+
+            Composition<T> factor() const
+            {
+                auto e{*this};
+
+                for (auto& expression: e.expressions_)
+                    expression = expression.factor();
+
+                return e;
+            }
 
         private:
             Function function_;
@@ -844,16 +1052,16 @@ namespace sym
                 return !operator==(other);
             }
 
-            bool isNull() const
+            bool isNull(T eps = 1e-6) const
             {
                 if (type_ == NumberType)
-                    return !*number_;
+                    return std::abs(*number_) <= eps;
                 else if (type_ == SymbolType)
                     return false;
                 else if (type_ == AddType)
-                    return add_->isNull();
+                    return add_->isNull(eps);
                 else if (type_ == MulType)
-                    return mul_->isNull();
+                    return mul_->isNull(eps);
                 else// if (type_ == CompositionType)
                     return false;
             }
@@ -1046,8 +1254,33 @@ namespace sym
                 return *this;
             }
 
-            Expression<T> expand() const;
-            Expression<T> factor() const;
+            Expression<T> expand() const
+            {
+                auto e{*this};
+
+                if (e.isMul())
+                    e = e.mul().expand();
+                else if (e.isAdd())
+                    e = e.add().expand();
+                else if (e.isComposition())
+                    e = e.composition().expand();
+
+                return e;
+            }
+
+            Expression<T> factor() const
+            {
+                auto e{*this};
+
+                if (e.isMul())
+                    e.mul_ = std::make_unique<Mul<T> >(e.mul_->factor());
+                else if (e.isAdd())
+                    e.add_ = std::make_unique<Add<T> >(e.add_->factor());
+                else if (e.isComposition())
+                    e.composition_ = std::make_unique<Composition<T> >(e.composition_->factor());
+
+                return e;
+            }
 
             Expression<T> simplify() const
             {
@@ -1057,6 +1290,8 @@ namespace sym
                     e.mul_ = std::make_unique<Mul<T> >(e.mul_->simplify());
                 else if (e.isAdd())
                     e.add_ = std::make_unique<Add<T> >(e.add_->simplify());
+                else if (e.isComposition())
+                    e.composition_ = std::make_unique<Composition<T> >(e.composition_->simplify());
 
                 return e;
             }
@@ -1119,6 +1354,38 @@ sym::Expression<T> operator+(sym::Symbol const& lhs, sym::Symbol const& rhs)
     return e += rhs;
 }
 
+template <typename T>
+sym::Expression<T> operator+(sym::Expression<T> const& lhs, sym::Symbol const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e += rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator+(sym::Symbol const& lhs, sym::Expression<T> const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e += rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator+(sym::Expression<T> const& lhs, T const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e += rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator+(T const& lhs, sym::Expression<T> const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e += rhs;
+}
+
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >*>
 sym::Expression<T> operator-(sym::Symbol const& lhs, T const& rhs)
 {
@@ -1137,6 +1404,38 @@ sym::Expression<T> operator-(T const& lhs, sym::Symbol const& rhs)
 
 template <typename T>
 sym::Expression<T> operator-(sym::Symbol const& lhs, sym::Symbol const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e -= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator-(sym::Expression<T> const& lhs, sym::Symbol const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e -= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator-(sym::Symbol const& lhs, sym::Expression<T> const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e -= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator-(sym::Expression<T> const& lhs, T const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e -= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator-(T const& lhs, sym::Expression<T> const& rhs)
 {
     sym::Expression<T> e{lhs};
 
@@ -1167,6 +1466,38 @@ sym::Expression<T> operator*(sym::Symbol const& lhs, sym::Symbol const& rhs)
     return e *= rhs;
 }
 
+template <typename T>
+sym::Expression<T> operator*(sym::Expression<T> const& lhs, sym::Symbol const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e *= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator*(sym::Symbol const& lhs, sym::Expression<T> const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e *= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator*(sym::Expression<T> const& lhs, T const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e *= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator*(T const& lhs, sym::Expression<T> const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e *= rhs;
+}
+
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T> >*>
 sym::Expression<T> operator/(sym::Symbol const& lhs, T const& rhs)
 {
@@ -1185,6 +1516,38 @@ sym::Expression<T> operator/(T const& lhs, sym::Symbol const& rhs)
 
 template <typename T>
 sym::Expression<T> operator/(sym::Symbol const& lhs, sym::Symbol const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e /= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator/(sym::Expression<T> const& lhs, sym::Symbol const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e /= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator/(sym::Symbol const& lhs, sym::Expression<T> const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e /= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator/(sym::Expression<T> const& lhs, T const& rhs)
+{
+    sym::Expression<T> e{lhs};
+
+    return e /= rhs;
+}
+
+template <typename T>
+sym::Expression<T> operator/(T const& lhs, sym::Expression<T> const& rhs)
 {
     sym::Expression<T> e{lhs};
 

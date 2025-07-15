@@ -74,6 +74,16 @@ TEST(TestSym, xMulx)
     std::cout << e3.simplify().str() << std::endl;
 }
 
+TEST(TestSym, xPowaMulxPowa)
+{
+    Symbol const x{"x"}, a{"a"};
+
+    Mul<T> const x2{x, a};
+    Expression<T> const e{x2 * x2};
+
+    std::cout << e.simplify().str() << std::endl;
+}
+
 TEST(TestSym, xPowaMulxPowb)
 {
     Symbol const x{"x"}, a{"a"}, b{"b"};
@@ -103,4 +113,34 @@ TEST(TestSym, MulEquality)
     Expression<T> const e2{operator*<T>(y, x)};
 
     EXPECT_TRUE(e1 == e2);
+}
+
+TEST(TestSym, 2xPow2Addx)
+{
+    Symbol const x{"x"};
+
+    Expression<T> const e{T{2} * x + operator*<T>(x, x)};
+
+    std::cout << e.simplify().str() << std::endl;
+}
+
+TEST(TestSym, 1AddxFactor2Addy)
+{
+    Symbol const x{"x"}, y{"y"};
+
+    Expression<T> const e{(T{1} + x) * (T{2} + y)};
+
+    std::cout << e.simplify().str() << std::endl;
+    std::cout << e.expand().simplify().str() << std::endl;
+}
+
+TEST(TestSym, 1AddxPow2)
+{
+    Symbol const x{"x"};
+
+    Expression<T> const e{(T{1} + x) * (T{1} + x)};
+
+    std::cout << e.simplify().str() << std::endl;
+    std::cout << e.expand().str() << std::endl;
+    std::cout << e.expand().simplify().str() << std::endl;
 }
