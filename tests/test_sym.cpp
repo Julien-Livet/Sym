@@ -1,13 +1,10 @@
 #include <gtest/gtest.h>
 
-#include <ginac/ginac.h>
-
 #include "Sym/Expression.h"
 
 using namespace sym;
 
 using T = double;
-//using T = GiNaC::numeric;
 
 TEST(TestSym, Symbol)
 {
