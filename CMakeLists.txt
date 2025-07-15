@@ -21,12 +21,7 @@ if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GINAC REQUIRED ginac)
-
 include_directories(include)
-
-add_compile_definitions(EIGEN_NO_DEBUG)
 
 enable_testing()
 add_executable(test_sym tests/test_sym.cpp)

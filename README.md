@@ -13,7 +13,7 @@ Sym is a symbolic tool to deal symbolic expressions like GiNaC in C++ or sympy i
 
 ```
 sudo apt update
-sudo apt install -y cmake make git libginac-dev libboost-all-dev
+sudo apt install -y cmake make git libboost-all-dev
 sudo apt install -y libgoogle-glog-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev
 cd ~
 mkdir sym_ws
