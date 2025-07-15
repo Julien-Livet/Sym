@@ -171,7 +171,7 @@ namespace sym
 
             Mul<T>& inverse()
             {
-                for (auto const& p: powers_)
+                for (auto& p: powers_)
                     p = -p;
             }
 
@@ -358,7 +358,9 @@ namespace sym
 
             Mul<T>& operator/=(Expression<T> const& other)
             {
-                auto const it{expressions_.find(other)};
+                auto const it{std::find(expressions_.begin(),
+                                        expressions_.end(),
+                                        other)};
 
                 if (it != expressions_.end())
                 {
@@ -1326,7 +1328,11 @@ namespace sym
             Expression<T>& operator/=(Expression<T> const& other)
             {
                 if (isMul())
-                    return *mul_ /= other;
+                {
+                    *mul_ *= Mul<T>{other, T{-1}};
+
+                    return *this;
+                }
                 else if (other.isMul())
                 {
                     auto e{other.mul()};
@@ -1339,7 +1345,7 @@ namespace sym
                 }
 
                 Mul<T> mul{*this};
-                mul /= other;
+                mul *= Mul<T>{other, T{-1}};
 
                 *this = mul;
 
