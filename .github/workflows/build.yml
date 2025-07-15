@@ -24,7 +24,9 @@ jobs:
       run: cmake -S . -B build
 
     - name: Build project
-      run: cmake --build build
+      run: |
+        cmake --build build
+        sudo make install
 
     - name: Run tests
       run: ctest -j$(nproc) --test-dir build --output-on-failure

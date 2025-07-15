@@ -40,3 +40,38 @@ set_tests_properties(TestSym PROPERTIES TIMEOUT ${TIMEOUT})
 
 include(GoogleTest)
 gtest_discover_tests(test_sym)
+
+install(DIRECTORY include/Sym DESTINATION include)
+
+add_library(Sym INTERFACE)
+target_include_directories(Sym INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/SymConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/SymConfig.cmake
+    INSTALL_DESTINATION lib/cmake/Sym
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/SymConfigVersion.cmake
+    VERSION 1.0.0
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/SymConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/SymConfigVersion.cmake
+    DESTINATION lib/cmake/Sym
+)
+
+install(TARGETS Sym EXPORT SymTargets)
+
+install(EXPORT SymTargets
+    NAMESPACE Sym::
+    DESTINATION lib/cmake/Sym
+)
