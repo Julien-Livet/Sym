@@ -1531,31 +1531,41 @@ namespace sym
     template <typename T>
     Expression<T> abs(Expression<T> const& e)
     {
-        return Composition<T>(Function("abs"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("abs"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::abs(e.number());});
     }
 
     template <typename T>
     Expression<T> ceil(Expression<T> const& e)
     {
-        return Composition<T>(Function("ceil"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("ceil"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::ceil(e.number());});
     }
 
     template <typename T>
     Expression<T> floor(Expression<T> const& e)
     {
-        return Composition<T>(Function("floor"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("floor"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::floor(e.number());});
     }
 
     template <typename T>
     Expression<T> min(Expression<T> const& x, Expression<T> const& y)
     {
-        return Composition<T>(Function("min", 2), std::vector<Expression<T> >{x, y});
+        return Composition<T>(Function("min", 2), std::vector<Expression<T> >{x, y},
+                              [x, y] () {return x.isNumber() && y.isNumber();},
+                              [x, y] () {return std::min(x.number(), y.number());});
     }
 
     template <typename T>
     Expression<T> max(Expression<T> const& x, Expression<T> const& y)
     {
-        return Composition<T>(Function("max", 2), std::vector<Expression<T> >{x, y});
+        return Composition<T>(Function("max", 2), std::vector<Expression<T> >{x, y},
+                              [x, y] () {return x.isNumber() && y.isNumber();},
+                              [x, y] () {return std::max(x.number(), y.number());});
     }
 
     template <typename T>
@@ -1564,7 +1574,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "log")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("exp"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("exp"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::exp(e.number());});
     }
 
     template <typename T>
@@ -1595,7 +1607,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "sin")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("asin"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("asin"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::asin(e.number());});
     }
 
     template <typename T>
@@ -1615,7 +1629,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "cos")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("acos"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("acos"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::acos(e.number());});
     }
 
     template <typename T>
@@ -1624,7 +1640,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "atan")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("tan"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("tan"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::tan(e.number());});
     }
 
     template <typename T>
@@ -1633,7 +1651,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "tan")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("atan"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("atan"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::atan(e.number());});
     }
 
     template <typename T>
@@ -1642,7 +1662,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "asinh")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("sinh"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("sinh"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::sinh(e.number());});
     }
 
     template <typename T>
@@ -1651,7 +1673,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "sinh")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("asinh"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("asinh"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::asinh(e.number());});
     }
 
     template <typename T>
@@ -1660,7 +1684,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "acosh")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("cosh"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("cosh"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::cosh(e.number());});
     }
 
     template <typename T>
@@ -1669,7 +1695,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "cosh")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("acosh"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("acosh"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::acosh(e.number());});
     }
 
     template <typename T>
@@ -1678,7 +1706,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "atanh")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("tanh"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("tanh"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::tanh(e.number());});
     }
 
     template <typename T>
@@ -1687,19 +1717,25 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "tanh")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("atanh"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("atanh"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::atanh(e.number());});
     }
 
     template <typename T>
     Expression<T> cot(Expression<T> const& e)
     {
-        return Composition<T>(Function("cot"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("cot"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return T{1} / std::tan(e.number());});
     }
 
     template <typename T>
     Expression<T> sqrt(Expression<T> const& e)
     {
-        return Composition<T>(Function("sqrt"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("sqrt"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::sqrt(e.number());});
     }
 
     template <typename T>
@@ -1708,7 +1744,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "inverse")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("inverse"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("inverse"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return T{1} / e.number();});
     }
 }
 
