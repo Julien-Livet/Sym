@@ -99,13 +99,12 @@ sym::Mul<T> operator*(sym::Add<T> const& add1, sym::Add<T> const& add2);
 
 namespace sym
 {
-    struct Function
+    class Function
     {
         public:
             std::string name;
-            std::string inverse; //TODO: to remove?
 
-            Function(std::string const& name, size_t args = 1, std::string const& inverse = std::string()) : name{name}, inverse{inverse}, args_{args}
+            Function(std::string const& name, size_t args = 1) : name{name}, args_{args}
             {
             }
 
@@ -223,7 +222,7 @@ namespace sym
 
             bool isNumber() const
             {
-                if (expressions_.empty())
+                if (expressions_.empty() || isNull())
                     return true;
 
                 for (size_t i{0}; i < expressions_.size(); ++i)
@@ -238,6 +237,9 @@ namespace sym
             T number() const
             {
                 assert(isNumber());
+                
+                if (isNull())
+                    return T{0};
 
                 T x{1};
 
@@ -700,7 +702,7 @@ namespace sym
 
             bool isNumber() const
             {
-                if (expressions_.empty())
+                if (expressions_.empty() || isNull())
                     return true;
 
                 for (auto const& e: expressions_)
@@ -715,6 +717,9 @@ namespace sym
             T number() const
             {
                 assert(isNumber());
+
+                if (isNull())
+                    return T{0};
 
                 T x{0};
 
@@ -998,7 +1003,11 @@ namespace sym
     class Composition
     {
         public:
-            Composition(Function const& function, std::vector<Expression<T> > const& expressions) : function_{function}, expressions_{expressions}
+            Composition(Function const& function,
+                        std::vector<Expression<T> > const& expressions,
+                        std::function<bool()> const& isNumber = [] () {return false;},
+                        std::function<T()> const& number = [] () {return T{0};})
+                : function_{function}, expressions_{expressions}, isNumber_{isNumber}, number_{number}
             {
                 assert(function.args() == expressions.size());
             }
@@ -1035,8 +1044,15 @@ namespace sym
                 return s;
             }
 
-            bool operator==(Composition const& other) const = default;
-            bool operator!=(Composition const& other) const = default;
+            bool operator==(Composition<T> const& other) const
+            {
+                return function_ == other.function_ && expressions_ == other.expressions_;
+            }
+
+            bool operator!=(Composition<T> const& other) const
+            {
+                return !operator==(other);
+            }
 
             Composition<T> expand() const
             {
@@ -1069,9 +1085,23 @@ namespace sym
                 return e;
             }
 
+            bool isNumber() const
+            {
+                return isNumber_();
+            }
+            
+            T number() const
+            {
+                assert(isNumber());
+                
+                return number_();
+            }
+
         private:
             Function function_;
             std::vector<Expression<T> > expressions_;
+            std::function<bool()> isNumber_;
+            std::function<T()> number_;
     };
 
     struct Symbol
@@ -1199,7 +1229,12 @@ namespace sym
                 else if (type_ == MulType)
                     return mul_->isNull(eps);
                 else// if (type_ == CompositionType)
+                {
+                    if (composition_->isNumber())
+                        return std::abs(composition_->number()) <= eps;
+
                     return false;
+                }
             }
 
             bool isMul() const
@@ -1237,7 +1272,7 @@ namespace sym
                 else if (type_ == MulType)
                     return mul_->isNumber();
                 else// if (type_ == CompositionType)
-                    return false;
+                    return composition_->isNumber();
             }
 
             T number() const
@@ -1252,6 +1287,8 @@ namespace sym
                     x = add_->number();
                 else if (type_ == MulType)
                     x = mul_->number();
+                else// if (type_ == CompositionType)
+                    x = composition_->number();
 
                 return x;
             }
@@ -1536,7 +1573,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "exp")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("log"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("log"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::log(e.number());});
     }
 
     template <typename T>
@@ -1545,7 +1584,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "asin")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("sin"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("sin"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::sin(e.number());});
     }
 
     template <typename T>
@@ -1563,7 +1604,9 @@ namespace sym
         if (e.isComposition() && e.composition().function().name == "acos")
             return e.composition().expressions().front();
 
-        return Composition<T>(Function("cos"), std::vector<Expression<T> >{e});
+        return Composition<T>(Function("cos"), std::vector<Expression<T> >{e},
+                              [e] () {return e.isNumber();},
+                              [e] () {return std::cos(e.number());});
     }
 
     template <typename T>

@@ -175,3 +175,10 @@ TEST(TestSym, ComplexNullExpression)
 
     EXPECT_TRUE(e.isNull());
 }
+
+TEST(TestSym, sin0AddLog1AddCos0)
+{
+    Expression<T> const e{sym::sin(Expression(0.0)) + sym::log(Expression(1.0)) + sym::cos(Expression(0.0))};
+
+    EXPECT_TRUE(e.simplify().str() == "1");
+}
