@@ -728,6 +728,17 @@ namespace sym
 
                 return x;
             }
+            
+            T additiveNumber() const
+            {
+                T x{0};
+
+                for (auto const& e: expressions_)
+                    if (e.isNumber())
+                        x += e.number();
+
+                return x;
+            }
 
             Add<T> factor() const
             {
