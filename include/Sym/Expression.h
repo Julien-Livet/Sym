@@ -257,10 +257,10 @@ namespace sym
                 {
                     if (powers_[i].isNumber())
                     {
-                        if (expressions_[i].isMul())
-                            x *= std::pow(expressions_[i].mul().numberFactor(), powers_[i].number());
                         if (expressions_[i].isNumber())
                             x *= std::pow(expressions_[i].number(), powers_[i].number());
+                        else if (expressions_[i].isMul())
+                            x *= std::pow(expressions_[i].mul().numberFactor(), powers_[i].number());
                     }
                 }
 
