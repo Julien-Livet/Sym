@@ -629,6 +629,16 @@ namespace sym
                 else
                     return sum * term;
             }
+            
+            T eval(std::map<std::string, T> const& map) const
+            {
+                T value{1};
+
+                for (size_t i{0}; i < expressions_.size(); ++i)
+                    value *= std::pow(expressions_[i].eval(map), powers_[i].eval(map));
+
+                return value;
+            }
 
         private:
             std::vector<Expression<T> > expressions_;
@@ -1005,6 +1015,16 @@ namespace sym
 
                 return e;
             }
+            
+            T eval(std::map<std::string, T> const& map) const
+            {
+                T value{0};
+
+                for (auto const& e: expressions_)
+                    value += e.eval(map);
+
+                return value;
+            }
 
         private:
             std::vector<Mul<T> > expressions_;
@@ -1016,9 +1036,10 @@ namespace sym
         public:
             Composition(Function const& function,
                         std::vector<Expression<T> > const& expressions,
+                        std::function<T(std::vector<T>)> const& eval,
                         std::function<bool()> const& isNumber = [] () {return false;},
                         std::function<T()> const& number = [] () {return T{0};})
-                : function_{function}, expressions_{expressions}, isNumber_{isNumber}, number_{number}
+                : function_{function}, expressions_{expressions}, eval_{eval}, isNumber_{isNumber}, number_{number}
             {
                 assert(function.args() == expressions.size());
             }
@@ -1107,10 +1128,22 @@ namespace sym
                 
                 return number_();
             }
+            
+            T eval(std::map<std::string, T> const& map) const
+            {
+                std::vector<T> params;
+                params.reserve(expressions_.size());
+
+                for (auto const& e: expressions_)
+                    params.emplace_back(e.eval(map));
+
+                return eval_(params);
+            }
 
         private:
             Function function_;
             std::vector<Expression<T> > expressions_;
+            std::function<T(std::vector<T>)> eval_;
             std::function<bool()> isNumber_;
             std::function<T()> number_;
     };
@@ -1530,6 +1563,20 @@ namespace sym
                     return true;
             }
 
+            T eval(std::map<std::string, T> const& map) const
+            {
+                if (isSymbol())
+                    return map.at(symbol_->name);
+                else if (isNumber())
+                    return number();
+                else if (isAdd())
+                    return add_->eval(map);
+                else if (isMul())
+                    return mul().eval(map);
+                else// if (isComposition())
+                    return composition_->eval(map);
+            }
+
         private:
             Type type_;
             std::unique_ptr<T> number_;
@@ -1543,6 +1590,7 @@ namespace sym
     Expression<T> abs(Expression<T> const& e)
     {
         return Composition<T>(Function("abs"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::abs(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::abs(e.number());});
     }
@@ -1551,6 +1599,7 @@ namespace sym
     Expression<T> ceil(Expression<T> const& e)
     {
         return Composition<T>(Function("ceil"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::ceil(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::ceil(e.number());});
     }
@@ -1559,6 +1608,7 @@ namespace sym
     Expression<T> floor(Expression<T> const& e)
     {
         return Composition<T>(Function("floor"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::floor(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::floor(e.number());});
     }
@@ -1567,6 +1617,7 @@ namespace sym
     Expression<T> min(Expression<T> const& x, Expression<T> const& y)
     {
         return Composition<T>(Function("min", 2), std::vector<Expression<T> >{x, y},
+                              [] (std::vector<T> const& params) {return std::min(params[0], params[1]);},
                               [x, y] () {return x.isNumber() && y.isNumber();},
                               [x, y] () {return std::min(x.number(), y.number());});
     }
@@ -1575,6 +1626,7 @@ namespace sym
     Expression<T> max(Expression<T> const& x, Expression<T> const& y)
     {
         return Composition<T>(Function("max", 2), std::vector<Expression<T> >{x, y},
+                              [] (std::vector<T> const& params) {return std::max(params[0], params[1]);},
                               [x, y] () {return x.isNumber() && y.isNumber();},
                               [x, y] () {return std::max(x.number(), y.number());});
     }
@@ -1586,6 +1638,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("exp"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::exp(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::exp(e.number());});
     }
@@ -1597,6 +1650,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("log"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::log(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::log(e.number());});
     }
@@ -1608,6 +1662,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("sin"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::sin(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::sin(e.number());});
     }
@@ -1619,6 +1674,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("asin"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::asin(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::asin(e.number());});
     }
@@ -1630,6 +1686,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("cos"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::cos(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::cos(e.number());});
     }
@@ -1641,6 +1698,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("acos"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::acos(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::acos(e.number());});
     }
@@ -1652,6 +1710,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("tan"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::tan(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::tan(e.number());});
     }
@@ -1663,6 +1722,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("atan"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::atan(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::atan(e.number());});
     }
@@ -1674,6 +1734,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("sinh"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::sinh(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::sinh(e.number());});
     }
@@ -1685,6 +1746,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("asinh"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::asinh(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::asinh(e.number());});
     }
@@ -1696,6 +1758,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("cosh"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::cosh(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::cosh(e.number());});
     }
@@ -1707,6 +1770,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("acosh"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::acosh(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::acosh(e.number());});
     }
@@ -1718,6 +1782,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("tanh"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::tanh(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::tanh(e.number());});
     }
@@ -1729,6 +1794,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("atanh"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::atanh(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::atanh(e.number());});
     }
@@ -1737,6 +1803,7 @@ namespace sym
     Expression<T> cot(Expression<T> const& e)
     {
         return Composition<T>(Function("cot"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return T{1} / std::tan(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return T{1} / std::tan(e.number());});
     }
@@ -1745,6 +1812,7 @@ namespace sym
     Expression<T> sqrt(Expression<T> const& e)
     {
         return Composition<T>(Function("sqrt"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return std::sqrt(params.front());},
                               [e] () {return e.isNumber();},
                               [e] () {return std::sqrt(e.number());});
     }
@@ -1756,6 +1824,7 @@ namespace sym
             return e.composition().expressions().front();
 
         return Composition<T>(Function("inverse"), std::vector<Expression<T> >{e},
+                              [] (std::vector<T> const& params) {return T{1} / params.front();},
                               [e] () {return e.isNumber();},
                               [e] () {return T{1} / e.number();});
     }

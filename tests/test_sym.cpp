@@ -182,3 +182,15 @@ TEST(TestSym, sin0AddLog1AddCos0)
 
     EXPECT_TRUE(e.simplify().str() == "1");
 }
+
+TEST(TestSym, EvalMinLogExp)
+{
+    Symbol const x{"x"};
+
+    Expression<T> const e{sym::min(sym::log(Expression<T>(x)), sym::exp(Expression<T>(x)))};
+
+    std::map<std::string, T> map;
+    map["x"] = 2.0;
+
+    EXPECT_TRUE(e.eval(map) == std::min(std::log(map["x"]), std::exp(map["x"])));
+}
