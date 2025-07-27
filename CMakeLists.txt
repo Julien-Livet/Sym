@@ -27,7 +27,7 @@ enable_testing()
 add_executable(test_sym tests/test_sym.cpp)
 target_link_libraries(test_sym
 #  asan ubsan
-  gtest gtest_main ${GINAC_LIBRARIES})
+  gtest gtest_main)
 
 math(EXPR TIMEOUT "3 * 60 * 60")
 add_test(NAME TestSym COMMAND test_sym)
