@@ -1152,6 +1152,10 @@ namespace sym
     {
         std::string name;
 
+        Symbol(std::string const& name) : name{name}
+        {
+        }
+
         bool operator==(Symbol const& other) const = default;
         bool operator!=(Symbol const& other) const = default;
     };
