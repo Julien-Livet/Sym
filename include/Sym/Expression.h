@@ -182,6 +182,8 @@ namespace sym
             {
                 for (auto& p: powers_)
                     p = -p;
+                
+                return *this;
             }
 
             Mul<T> inverse() const
